@@ -263,6 +263,24 @@
     font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;
   }
   .add-recipe-btn:hover { background: #1b4332; }
+  .paste-recipe-btn {
+    background: #fff; color: #2d6a4f; border: 1.5px solid #2d6a4f;
+    border-radius: 8px; padding: 8px 14px; font-size: 0.85rem;
+    font-weight: 600; cursor: pointer;
+  }
+  .paste-recipe-btn:hover { background: #f0f7f4; }
+  .header-btns { display: flex; gap: 8px; }
+
+  .parse-result {
+    background: #f0f7f4; border: 1.5px solid #b7e4c7;
+    border-radius: 10px; padding: 12px 14px; margin-top: 14px;
+    font-size: 0.82rem; color: #1b4332;
+  }
+  .parse-result strong { display: block; margin-bottom: 6px; font-size: 0.85rem; }
+  .parse-tag {
+    display: inline-block; background: #d8f3dc; border-radius: 4px;
+    padding: 2px 7px; margin: 2px; font-size: 0.78rem; color: #1b4332;
+  }
 
   .my-recipe-card {
     background: #fff; border-radius: 12px;
@@ -412,7 +430,10 @@
 <div class="container">
   <div class="my-recipes-header">
     <h2>나의 레시피</h2>
-    <button class="add-recipe-btn" onclick="openAddRecipe()">+ 레시피 추가</button>
+    <div class="header-btns">
+      <button class="paste-recipe-btn" onclick="openPasteRecipe()">📋 텍스트로 추가</button>
+      <button class="add-recipe-btn" onclick="openAddRecipe()">+ 직접 입력</button>
+    </div>
   </div>
   <div id="my-recipe-list"></div>
 </div>
@@ -1008,6 +1029,124 @@ function closeMyModal(e) {
 function closeMyModalDirect() {
   document.getElementById('my-modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// ── 텍스트 붙여넣기로 레시피 추가 ──
+function openPasteRecipe() {
+  document.getElementById('my-modal-title').textContent = '텍스트로 레시피 추가';
+  document.getElementById('my-modal-icon').textContent = '📋';
+  document.getElementById('my-modal-body').innerHTML = `
+    <p style="font-size:0.85rem;color:#555;margin-bottom:12px;line-height:1.5;">
+      인스타그램, 블로그, 유튜브 댓글 등에서 복사한 레시피 텍스트를 그대로 붙여넣으세요.<br>
+      재료와 조리 순서를 자동으로 분석합니다.
+    </p>
+    <div class="form-group">
+      <label>레시피 텍스트 붙여넣기</label>
+      <textarea class="form-textarea" id="paste-input" style="min-height:180px"
+        placeholder="예시)&#10;재료: 두부 1모, 달걀 2개, 양파 1/2개&#10;&#10;1. 두부를 깍둑썰기합니다.&#10;2. 팬에 기름을 두르고 볶습니다."></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeMyModalDirect()">취소</button>
+      <button class="btn-save" onclick="parsePastedRecipe()">🔍 자동 분석</button>
+    </div>
+  `;
+  document.getElementById('my-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function parsePastedRecipe() {
+  const raw = document.getElementById('paste-input').value.trim();
+  if (!raw) { alert('텍스트를 붙여넣어 주세요.'); return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // 요리 이름 추출 — 첫 줄이 짧고(20자 이하) 재료/순서 키워드 없으면 제목으로
+  const titleKeywords = /재료|순서|만드는|ingredients|steps|방법/i;
+  let name = '';
+  if (lines[0] && lines[0].length <= 25 && !titleKeywords.test(lines[0])) {
+    name = lines[0].replace(/^[🍳🥘🍲🥗🍜🍚🍱🥩🍗🥓🍛🍝🌶️🧀🥚🍞\s]+/, '').trim();
+  }
+
+  // 재료 구간 탐지
+  const ingrKeywords = /^[🛒🧺🛍️\s]*(재료|ingredient)/i;
+  const stepKeywords = /^[🍳🥘\s]*(요리\s*순서|조리\s*순서|만드는\s*법|순서|방법|how\s*to)/i;
+  const stepLinePattern = /^([\d①②③④⑤⑥⑦⑧⑨⑩\-\*•][\s.\)】]|[1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣8️⃣9️⃣])/;
+
+  let mode = 'detect';
+  const ingrLines = [], stepLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (ingrKeywords.test(l)) { mode = 'ingr'; continue; }
+    if (stepKeywords.test(l)) { mode = 'step'; continue; }
+
+    if (mode === 'ingr') {
+      if (stepLinePattern.test(l)) { mode = 'step'; stepLines.push(cleanStep(l)); }
+      else ingrLines.push(l);
+    } else if (mode === 'step') {
+      stepLines.push(cleanStep(l));
+    } else {
+      // 섹션 키워드 없는 경우: 번호 패턴이면 step, 쉼표/단위 포함이면 재료
+      if (stepLinePattern.test(l)) { mode = 'step'; stepLines.push(cleanStep(l)); }
+      else if (/[,，]|g|ml|큰술|작은술|스푼|개|장|줌|컵|적당량/.test(l)) {
+        // 쉼표로 여러 재료가 한 줄에 있을 수 있음
+        l.split(/[,，]/).forEach(p => { if (p.trim()) ingrLines.push(p.trim()); });
+      }
+    }
+  }
+
+  // 재료가 쉼표로 나열된 단일 줄인 경우 다시 분리
+  const finalIngr = ingrLines.flatMap(l =>
+    l.includes(',') || l.includes('，')
+      ? l.split(/[,，]/).map(p => p.trim()).filter(Boolean)
+      : [l]
+  );
+
+  // 결과 미리보기 + 편집 화면
+  selectedIconValue = '🍳';
+  const iconsHtml = ICONS.map(ic =>
+    `<span class="icon-opt${ic === '🍳' ? ' selected' : ''}" onclick="selectIcon(this,'${ic}')">${ic}</span>`
+  ).join('');
+
+  document.getElementById('my-modal-body').innerHTML = `
+    <div class="form-group">
+      <label>아이콘</label>
+      <div class="icon-picker">${iconsHtml}</div>
+    </div>
+    <div class="form-group">
+      <label>요리 이름</label>
+      <input class="form-input" id="form-name" value="${name}" placeholder="요리 이름을 입력하세요">
+    </div>
+    <div class="form-group">
+      <label>재료 <span style="color:#52b788;font-weight:400">(분석됨: ${finalIngr.length}개)</span></label>
+      <textarea class="form-textarea" id="form-ingredients">${finalIngr.join('\n')}</textarea>
+      <p class="form-hint">한 줄에 재료 하나. 직접 수정 가능합니다.</p>
+    </div>
+    <div class="form-group">
+      <label>조리 순서 <span style="color:#52b788;font-weight:400">(분석됨: ${stepLines.length}단계)</span></label>
+      <textarea class="form-textarea" id="form-steps">${stepLines.join('\n')}</textarea>
+      <p class="form-hint">한 줄에 단계 하나. 직접 수정 가능합니다.</p>
+    </div>
+    <div class="form-group">
+      <label>메모 / 팁 (선택)</label>
+      <input class="form-input" id="form-tip" placeholder="예: 묵은 김치를 쓰면 더 맛있어요">
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="openPasteRecipe()">← 다시 붙여넣기</button>
+      <button class="btn-save" onclick="saveRecipeForm()">저장하기</button>
+    </div>
+  `;
+  editingId = null;
+}
+
+function cleanStep(line) {
+  // 앞의 번호/기호 제거
+  return line
+    .replace(/^[1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣8️⃣9️⃣]/, '')
+    .replace(/^[①②③④⑤⑥⑦⑧⑨⑩]/, '')
+    .replace(/^\d+[\s.\)】]/, '')
+    .replace(/^[-\*•]\s*/, '')
+    .trim();
 }
 
 // ── 서비스워커 등록 ──
