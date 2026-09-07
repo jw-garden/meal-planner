@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>냉장고 식단표</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d6a4f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="식단표">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f0;
+    color: #222;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #2d6a4f;
+    color: #fff;
+    padding: calc(env(safe-area-inset-top) + 20px) 16px 16px;
+    text-align: center;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; }
+  header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+
+  /* 상단 탭 */
+  .main-tabs {
+    display: flex; background: #1b4332;
+    max-width: 700px; margin: 0 auto;
+  }
+  .main-tab {
+    flex: 1; padding: 11px 0; text-align: center;
+    font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,.55);
+    cursor: pointer; border-bottom: 3px solid transparent;
+    transition: all .15s;
+  }
+  .main-tab.active { color: #fff; border-bottom-color: #52b788; }
+
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  .container { max-width: 700px; margin: 0 auto; padding: 16px; }
+
+  .input-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+  .input-section h2 { font-size: 1rem; margin-bottom: 12px; color: #2d6a4f; }
+
+  .tag-input-wrap {
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    cursor: text;
+    min-height: 48px;
+  }
+  .tag-input-wrap:focus-within { border-color: #2d6a4f; }
+
+  .tag {
+    background: #d8f3dc;
+    color: #1b4332;
+    border-radius: 20px;
+    padding: 3px 10px 3px 12px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .tag button {
+    background: none; border: none; cursor: pointer;
+    color: #52b788; font-size: 0.9rem; line-height: 1; padding: 0;
+  }
+  .tag button:hover { color: #c0392b; }
+
+  #ingredient-input {
+    border: none; outline: none;
+    font-size: 0.9rem; flex: 1; min-width: 120px;
+    background: transparent;
+  }
+
+  .input-hint { font-size: 0.75rem; color: #888; margin-top: 6px; }
+
+  .presets { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .preset-btn {
+    background: #f0f7f4; border: 1px solid #b7e4c7;
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 0.78rem; cursor: pointer; color: #2d6a4f;
+    transition: background .15s;
+  }
+  .preset-btn:hover { background: #d8f3dc; }
+
+  .generate-btn {
+    width: 100%; margin-top: 14px;
+    background: #2d6a4f; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 13px; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+  }
+  .generate-btn:hover { background: #1b4332; }
+
+  .result-section { display: none; }
+  .result-section.visible { display: block; }
+
+  .week-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .week-nav h2 { font-size: 1rem; color: #1b4332; }
+  .week-nav button {
+    background: #2d6a4f; color: #fff; border: none;
+    border-radius: 6px; padding: 6px 14px; font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .day-tabs {
+    display: flex; gap: 4px; overflow-x: auto;
+    padding-bottom: 4px; margin-bottom: 12px;
+    scrollbar-width: none;
+  }
+  .day-tabs::-webkit-scrollbar { display: none; }
+
+  .day-tab {
+    flex-shrink: 0;
+    background: #fff; border: 1.5px solid #ddd;
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 0.82rem; cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .day-tab.active {
+    background: #2d6a4f; border-color: #2d6a4f; color: #fff; font-weight: 600;
+  }
+
+  .day-card {
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    overflow: hidden;
+  }
+
+  .meal-row {
+    display: flex; align-items: flex-start;
+    padding: 14px 16px; border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .meal-row:last-child { border-bottom: none; }
+  .meal-row:hover { background: #f9fef9; }
+  .meal-row:active { background: #edf7f0; }
+
+  .meal-content { flex: 1; }
+  .meal-name {
+    font-size: 0.95rem; font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .recipe-hint {
+    font-size: 0.68rem; color: #52b788; font-weight: 400;
+    border: 1px solid #b7e4c7; border-radius: 4px; padding: 1px 5px;
+  }
+  .meal-ingredients {
+    font-size: 0.78rem; color: #666;
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .ingr-tag { background: #f4f4f4; border-radius: 4px; padding: 1px 6px; }
+  .ingr-tag.match { background: #d8f3dc; color: #1b4332; }
+
+  .meal-icon { font-size: 1.3rem; margin-right: 10px; flex-shrink: 0; }
+
+  .coverage-bar {
+    background: #fff; border-radius: 12px; padding: 12px 16px;
+    margin-top: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    font-size: 0.82rem; color: #555;
+  }
+  .coverage-bar strong { color: #1b4332; }
+  .bar-bg { background: #eee; border-radius: 20px; height: 6px; margin-top: 6px; }
+  .bar-fill { background: #52b788; border-radius: 20px; height: 6px; transition: width .5s ease; }
+
+  /* 레시피 모달 */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 100;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 700px;
+    max-height: 85vh; overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .modal-handle {
+    width: 40px; height: 4px; background: #ddd;
+    border-radius: 2px; margin: 12px auto 0;
+  }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 12px; border-bottom: 1px solid #f0f0f0;
+  }
+  .modal-title { display: flex; align-items: center; gap: 10px; }
+  .modal-title .icon { font-size: 1.8rem; }
+  .modal-title h3 { font-size: 1.1rem; font-weight: 700; }
+  .meal-badge {
+    font-size: 0.72rem; padding: 2px 8px;
+    border-radius: 10px; font-weight: 600; display: inline-block;
+    margin-bottom: 3px;
+  }
+  .badge-breakfast { background: #fef3e2; color: #e67e22; }
+  .badge-lunch     { background: #e8f8ee; color: #27ae60; }
+  .badge-dinner    { background: #e8f0fb; color: #2980b9; }
+
+  .modal-close {
+    background: #f4f4f4; border: none; border-radius: 50%;
+    width: 32px; height: 32px; font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .modal-close:hover { background: #eee; }
+
+  .modal-body { padding: 16px; }
+
+  .recipe-section { margin-bottom: 20px; }
+  .recipe-section h4 {
+    font-size: 0.78rem; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px;
+  }
+
+  .recipe-ingr-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .recipe-ingr-chip {
+    background: #f4f4f4; border-radius: 6px; padding: 4px 10px; font-size: 0.84rem;
+  }
+  .recipe-ingr-chip.have { background: #d8f3dc; color: #1b4332; }
+
+  /* 나의 레시피 탭 */
+  .my-recipes-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .my-recipes-header h2 { font-size: 1rem; color: #1b4332; }
+  .add-recipe-btn {
+    background: #2d6a4f; color: #fff; border: none;
+    border-radius: 8px; padding: 8px 14px; font-size: 0.85rem;
+    font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  .add-recipe-btn:hover { background: #1b4332; }
+
+  .my-recipe-card {
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    margin-bottom: 10px; overflow: hidden;
+    cursor: pointer; transition: box-shadow .15s;
+  }
+  .my-recipe-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.1); }
+
+  .my-recipe-card-head {
+    display: flex; align-items: center;
+    padding: 14px 16px; gap: 12px;
+  }
+  .my-recipe-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .my-recipe-info { flex: 1; }
+  .my-recipe-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+  .my-recipe-meta { font-size: 0.75rem; color: #999; }
+  .my-recipe-del {
+    background: none; border: none; color: #ccc; font-size: 1.1rem;
+    cursor: pointer; padding: 4px; flex-shrink: 0;
+  }
+  .my-recipe-del:hover { color: #e74c3c; }
+
+  .empty-my-recipes {
+    text-align: center; padding: 50px 20px; color: #bbb;
+  }
+  .empty-my-recipes .big { font-size: 2.5rem; margin-bottom: 10px; }
+  .empty-my-recipes p { font-size: 0.9rem; }
+
+  /* 레시피 입력 모달 */
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 0.78rem; font-weight: 700;
+    color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .form-input, .form-textarea {
+    width: 100%; border: 1.5px solid #ddd; border-radius: 8px;
+    padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
+    outline: none; transition: border-color .15s;
+    background: #fff; color: #222;
+  }
+  .form-input:focus, .form-textarea:focus { border-color: #2d6a4f; }
+  .form-textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
+  .form-hint { font-size: 0.73rem; color: #aaa; margin-top: 4px; }
+  .icon-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .icon-opt {
+    font-size: 1.3rem; padding: 6px 8px; border-radius: 8px;
+    cursor: pointer; border: 2px solid transparent; transition: all .1s;
+  }
+  .icon-opt:hover { background: #f0f7f4; }
+  .icon-opt.selected { border-color: #2d6a4f; background: #d8f3dc; }
+  .form-actions {
+    display: flex; gap: 8px; margin-top: 4px;
+  }
+  .btn-cancel {
+    flex: 1; padding: 12px; border: 1.5px solid #ddd;
+    border-radius: 8px; background: #fff; font-size: 0.9rem;
+    cursor: pointer; font-weight: 600; color: #555;
+  }
+  .btn-save {
+    flex: 2; padding: 12px; border: none;
+    border-radius: 8px; background: #2d6a4f; color: #fff;
+    font-size: 0.9rem; cursor: pointer; font-weight: 600;
+  }
+  .btn-save:hover { background: #1b4332; }
+  .recipe-ingr-chip.optional { opacity: .65; }
+
+  .steps-list { list-style: none; }
+  .steps-list li { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+  .step-num {
+    flex-shrink: 0; width: 24px; height: 24px;
+    background: #2d6a4f; color: #fff; border-radius: 50%;
+    font-size: 0.75rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .step-text { font-size: 0.88rem; line-height: 1.55; color: #333; }
+
+  .recipe-tip {
+    background: #f0f7f4; border-left: 3px solid #52b788;
+    border-radius: 0 8px 8px 0; padding: 10px 12px;
+    font-size: 0.82rem; color: #555; line-height: 1.5;
+  }
+  .recipe-tip strong { color: #2d6a4f; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥗 냉장고 식단표</h1>
+  <p>재료를 입력하면 1주일 식단을 자동으로 구성해드립니다</p>
+</header>
+
+<nav class="main-tabs">
+  <div class="main-tab active" onclick="switchTab('planner')">📅 식단 생성</div>
+  <div class="main-tab" onclick="switchTab('myrecipes')">📖 나의 레시피</div>
+</nav>
+
+<!-- 식단 생성 탭 -->
+<div class="tab-page active" id="tab-planner">
+<div class="container">
+  <div class="input-section">
+    <h2>냉장고 재료</h2>
+    <div class="tag-input-wrap" id="tag-wrap" onclick="document.getElementById('ingredient-input').focus()">
+      <input id="ingredient-input" placeholder="재료 입력 후 엔터" autocomplete="off">
+    </div>
+    <p class="input-hint">쉼표(,)나 엔터로 여러 재료를 입력하세요</p>
+
+    <div class="presets">
+      <span style="font-size:0.78rem;color:#888;align-self:center;">빠른 추가:</span>
+      <button class="preset-btn" onclick="addPreset('달걀')">달걀</button>
+      <button class="preset-btn" onclick="addPreset('두부')">두부</button>
+      <button class="preset-btn" onclick="addPreset('닭가슴살')">닭가슴살</button>
+      <button class="preset-btn" onclick="addPreset('돼지고기')">돼지고기</button>
+      <button class="preset-btn" onclick="addPreset('소고기')">소고기</button>
+      <button class="preset-btn" onclick="addPreset('양파')">양파</button>
+      <button class="preset-btn" onclick="addPreset('감자')">감자</button>
+      <button class="preset-btn" onclick="addPreset('당근')">당근</button>
+      <button class="preset-btn" onclick="addPreset('시금치')">시금치</button>
+      <button class="preset-btn" onclick="addPreset('버섯')">버섯</button>
+      <button class="preset-btn" onclick="addPreset('고구마')">고구마</button>
+      <button class="preset-btn" onclick="addPreset('파')">파</button>
+      <button class="preset-btn" onclick="addPreset('마늘')">마늘</button>
+      <button class="preset-btn" onclick="addPreset('쌀')">쌀</button>
+      <button class="preset-btn" onclick="addPreset('라면')">라면</button>
+      <button class="preset-btn" onclick="addPreset('김치')">김치</button>
+      <button class="preset-btn" onclick="addPreset('우유')">우유</button>
+      <button class="preset-btn" onclick="addPreset('치즈')">치즈</button>
+    </div>
+
+    <button class="generate-btn" onclick="generate()">식단 생성하기</button>
+  </div>
+
+  <div class="result-section" id="result">
+    <div class="week-nav">
+      <h2>이번 주 식단</h2>
+      <button onclick="generate()">다시 생성</button>
+    </div>
+    <div class="day-tabs" id="day-tabs"></div>
+    <div class="day-card" id="day-card"></div>
+    <div class="coverage-bar" id="coverage-bar"></div>
+  </div>
+</div>
+</div>
+
+<!-- 나의 레시피 탭 -->
+<div class="tab-page" id="tab-myrecipes">
+<div class="container">
+  <div class="my-recipes-header">
+    <h2>나의 레시피</h2>
+    <button class="add-recipe-btn" onclick="openAddRecipe()">+ 레시피 추가</button>
+  </div>
+  <div id="my-recipe-list"></div>
+</div>
+</div>
+
+<!-- 레시피 모달 -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">
+        <span class="icon" id="modal-icon"></span>
+        <div>
+          <div id="modal-badge"></div>
+          <h3 id="modal-name"></h3>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- 레시피 추가/보기 모달 -->
+<div class="modal-overlay" id="my-modal-overlay" onclick="closeMyModal(event)">
+  <div class="modal" id="my-modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">
+        <span class="icon" id="my-modal-icon">🍽️</span>
+        <div>
+          <h3 id="my-modal-title">레시피 추가</h3>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeMyModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="my-modal-body"></div>
+  </div>
+</div>
+
+<script>
+const RECIPES = [
+  // 아침
+  { name: '달걀 프라이', icon: '🍳', meal: 'breakfast', need: ['달걀'], optional: ['버터', '파'],
+    steps: ['프라이팬에 식용유(또는 버터)를 두르고 중불로 달굽니다.', '달걀을 깨서 팬에 넣습니다.', '흰자가 익으면 뚜껑을 덮고 30초 더 익힙니다.', '소금·후추로 간하고 파를 뿌려 마무리합니다.'],
+    tip: '반숙을 원하면 노른자가 살짝 흔들릴 때 불을 끄세요.' },
+  { name: '스크램블 에그', icon: '🥚', meal: 'breakfast', need: ['달걀'], optional: ['우유', '치즈'],
+    steps: ['달걀 2개에 우유 2큰술을 넣고 잘 풀어줍니다.', '버터를 두른 팬에 달걀물을 붓습니다.', '약불에서 주걱으로 천천히 저어가며 익힙니다.', '치즈를 올리고 불을 끄면 여열로 완성됩니다.'],
+    tip: '약불+천천히 젓기가 부드러운 스크램블의 핵심입니다.' },
+  { name: '토스트 & 달걀', icon: '🍞', meal: 'breakfast', need: ['달걀', '식빵'], optional: ['치즈', '버터'],
+    steps: ['식빵을 토스터에 굽습니다.', '팬에 버터를 녹이고 달걀 프라이를 만듭니다.', '토스트 위에 치즈 → 달걀 순으로 올립니다.', '소금·후추로 마무리합니다.'],
+    tip: '치즈는 달걀 위에 올린 뒤 뚜껑을 덮으면 잘 녹습니다.' },
+  { name: '고구마 죽', icon: '🍠', meal: 'breakfast', need: ['고구마', '쌀'], optional: [],
+    steps: ['쌀을 30분 불려둡니다.', '고구마는 껍질 벗겨 작게 깍둑썰기합니다.', '냄비에 쌀·고구마·물(5배)을 넣고 끓입니다.', '약불에서 20분간 저으며 걸쭉해질 때까지 익힙니다.', '소금으로 간합니다.'],
+    tip: '고구마를 미리 쪄두면 훨씬 빠르게 완성됩니다.' },
+  { name: '시리얼 & 우유', icon: '🥣', meal: 'breakfast', need: ['우유'], optional: [],
+    steps: ['그릇에 시리얼을 담습니다.', '차가운 우유를 붓습니다.'],
+    tip: '바나나나 블루베리를 얹으면 영양이 풍부해집니다.' },
+  { name: '두부 계란찜', icon: '🥘', meal: 'breakfast', need: ['두부', '달걀'], optional: ['파'],
+    steps: ['달걀 2개를 풀고 물 100ml, 소금을 넣어 섞습니다.', '두부를 작게 깍둑썰기해 달걀물에 넣습니다.', '내열 그릇에 담아 전자레인지 3분 돌립니다.', '파를 썰어 위에 올립니다.'],
+    tip: '전자레인지 후 30초씩 추가하며 익힘 정도를 조절하세요.' },
+  { name: '김치 볶음밥', icon: '🍳', meal: 'breakfast', need: ['김치', '쌀'], optional: ['달걀'],
+    steps: ['김치를 잘게 썰고 기름을 두른 팬에 볶습니다.', '밥을 넣고 김치와 함께 볶습니다.', '참기름·소금으로 간합니다.', '달걀 프라이를 얹어 완성합니다.'],
+    tip: '묵은 김치를 쓸수록 깊은 맛이 납니다.' },
+  { name: '감자전', icon: '🥞', meal: 'breakfast', need: ['감자', '달걀'], optional: ['파', '소금'],
+    steps: ['감자를 강판에 갈거나 믹서에 갈아 물기를 짭니다.', '달걀 1개, 소금, 파를 넣고 반죽을 만듭니다.', '팬에 기름을 두르고 반죽을 얇게 펼칩니다.', '중불에서 양면을 노릇하게 굽습니다.'],
+    tip: '감자 물기를 충분히 짜야 바삭하게 됩니다.' },
+  { name: '치즈 달걀 토스트', icon: '🧀', meal: 'breakfast', need: ['달걀', '치즈'], optional: [],
+    steps: ['달걀을 풀어 소금으로 간합니다.', '팬에 달걀물을 붓고 반숙 상태에서 치즈를 올립니다.', '달걀을 네모 모양으로 접습니다.', '토스트 사이에 넣어 완성합니다.'],
+    tip: '달걀을 접을 때 치즈가 녹아 있어야 꾸덕한 식감이 납니다.' },
+  { name: '닭죽', icon: '🍚', meal: 'breakfast', need: ['닭가슴살', '쌀'], optional: ['마늘', '파'],
+    steps: ['쌀을 30분 불립니다.', '닭가슴살을 삶아 결대로 찢어둡니다.', '냄비에 쌀·닭육수·마늘을 넣고 끓입니다.', '약불에서 20분 저으며 익힌 뒤 닭살을 넣습니다.', '파·소금으로 마무리합니다.'],
+    tip: '닭 삶은 물을 육수로 사용하면 더 진한 맛이 납니다.' },
+  { name: '된장국 & 밥', icon: '🍱', meal: 'breakfast', need: ['두부', '쌀'], optional: ['된장', '파'],
+    steps: ['냄비에 물을 끓이고 된장 1~2큰술을 풉니다.', '두부를 깍둑썰기해 넣습니다.', '3분 끓인 뒤 파를 넣어 마무리합니다.', '밥과 함께 냅니다.'],
+    tip: '멸치 다시마 육수로 끓이면 훨씬 깊은 맛이 납니다.' },
+  { name: '미역국 & 밥', icon: '🍲', meal: 'breakfast', need: ['미역', '쌀'], optional: ['마늘'],
+    steps: ['건미역을 물에 20분 불려 먹기 좋게 자릅니다.', '냄비에 참기름을 두르고 미역을 볶습니다.', '물 600ml·마늘을 넣고 15분 끓입니다.', '국간장·소금으로 간합니다.'],
+    tip: '미역은 충분히 볶아야 비린 맛이 없어집니다.' },
+  { name: '콩나물국 & 밥', icon: '🍜', meal: 'breakfast', need: ['콩나물', '쌀'], optional: ['마늘', '파'],
+    steps: ['냄비에 물을 끓이고 콩나물을 넣습니다.', '뚜껑을 덮고 7분간 끓입니다 (중간에 뚜껑 열지 않기).', '마늘·소금으로 간하고 파를 넣습니다.'],
+    tip: '뚜껑을 열면 비린 맛이 나므로 처음 5분은 꼭 닫아두세요.' },
+  { name: '오트밀 죽', icon: '🫙', meal: 'breakfast', need: ['오트밀', '우유'], optional: ['바나나'],
+    steps: ['오트밀 50g을 냄비에 넣습니다.', '우유 200ml를 붓고 중불에서 저어가며 끓입니다.', '3~5분 후 걸쭉해지면 불을 끕니다.', '바나나를 슬라이스해 올립니다.'],
+    tip: '꿀 한 스푼을 더하면 달콤함이 올라갑니다.' },
+  { name: '바나나 스무디', icon: '🥤', meal: 'breakfast', need: ['바나나', '우유'], optional: [],
+    steps: ['바나나를 적당히 잘라 냉동해두면 더 좋습니다.', '믹서에 바나나·우유 200ml를 넣습니다.', '곱게 갈아 컵에 담습니다.'],
+    tip: '냉동 바나나를 쓰면 아이스크림처럼 부드럽습니다.' },
+
+  // 점심
+  { name: '제육볶음', icon: '🥩', meal: 'lunch', need: ['돼지고기', '양파'], optional: ['마늘', '고추장'],
+    steps: ['돼지고기를 먹기 좋게 썹니다.', '고추장 2·간장 1·설탕 1·다진 마늘로 양념을 만듭니다.', '고기에 양념을 버무려 10분 재웁니다.', '팬에 기름을 두르고 양파를 먼저 볶습니다.', '고기를 넣고 센불에서 볶습니다.'],
+    tip: '마지막에 참기름을 한 방울 넣으면 향이 올라옵니다.' },
+  { name: '닭갈비', icon: '🍗', meal: 'lunch', need: ['닭가슴살', '양파'], optional: ['고구마', '마늘'],
+    steps: ['닭가슴살을 먹기 좋게 썹니다.', '고추장 2·간장 1·설탕 1·마늘로 양념을 만듭니다.', '닭에 양념을 버무려 30분 재웁니다.', '팬에 양파·고구마를 먼저 볶다가 닭을 넣습니다.', '물을 약간 넣고 뚜껑 닫아 익힙니다.'],
+    tip: '고구마는 전자레인지에 미리 2분 돌리면 쉽게 익습니다.' },
+  { name: '된장찌개', icon: '🍲', meal: 'lunch', need: ['두부', '양파'], optional: ['감자', '마늘', '된장'],
+    steps: ['냄비에 물 500ml를 끓입니다.', '된장 2큰술을 풀고 다진 마늘을 넣습니다.', '감자를 깍둑썰기해 넣고 5분 끓입니다.', '두부·양파를 넣고 3분 더 끓입니다.'],
+    tip: '멸치 육수로 끓이면 더 깊은 맛이 납니다.' },
+  { name: '김치찌개', icon: '🌶️', meal: 'lunch', need: ['김치', '돼지고기'], optional: ['두부', '파'],
+    steps: ['냄비에 기름을 두르고 돼지고기와 김치를 함께 볶습니다.', '물 500ml를 붓고 끓입니다.', '두부를 넣고 10분 더 끓입니다.', '파를 넣어 마무리합니다.'],
+    tip: '신 김치를 써야 맛이 진하게 납니다.' },
+  { name: '소고기 볶음', icon: '🥩', meal: 'lunch', need: ['소고기', '양파'], optional: ['당근', '마늘'],
+    steps: ['소고기에 간장 1·설탕 0.5·마늘·참기름으로 밑간합니다.', '팬을 센불로 달구고 소고기를 볶습니다.', '양파·당근을 넣고 함께 볶습니다.', '소금·후추로 마무리합니다.'],
+    tip: '고기는 센불에서 빠르게 볶아야 육즙이 살아납니다.' },
+  { name: '감자볶음', icon: '🥔', meal: 'lunch', need: ['감자', '양파'], optional: ['마늘', '파'],
+    steps: ['감자를 채 썰어 물에 5분 담가 전분을 뺍니다.', '팬에 기름을 두르고 마늘·양파를 먼저 볶습니다.', '감자를 넣고 중불에서 볶습니다.', '간장 1·소금으로 간하고 파를 뿌립니다.'],
+    tip: '감자를 전분 제거 후 볶으면 훨씬 더 바삭합니다.' },
+  { name: '버섯 볶음', icon: '🍄', meal: 'lunch', need: ['버섯', '마늘'], optional: ['양파', '파'],
+    steps: ['버섯을 먹기 좋게 찢거나 썹니다.', '팬에 기름을 두르고 마늘을 볶아 향을 냅니다.', '버섯을 넣고 수분이 날아갈 때까지 볶습니다.', '간장·소금으로 간하고 파를 뿌립니다.'],
+    tip: '버섯은 수분이 많으니 센불에서 재빨리 볶아야 맛있습니다.' },
+  { name: '시금치나물 비빔밥', icon: '🥗', meal: 'lunch', need: ['시금치', '쌀', '달걀'], optional: ['당근'],
+    steps: ['시금치를 끓는 물에 30초 데쳐 물기를 짭니다.', '참기름·간장·마늘로 시금치 나물을 무칩니다.', '달걀 프라이를 만들어둡니다.', '밥 위에 나물과 달걀을 올리고 고추장을 곁들입니다.'],
+    tip: '참기름을 밥에 먼저 비벼두면 더 고소합니다.' },
+  { name: '라면', icon: '🍜', meal: 'lunch', need: ['라면'], optional: ['달걀', '파', '김치'],
+    steps: ['물 500ml를 끓입니다.', '면과 스프를 넣고 3~4분 끓입니다.', '달걀을 넣고 원하는 익힘도로 익힙니다.', '파·김치를 올려 마무리합니다.'],
+    tip: '스프를 먼저 넣고 면을 나중에 넣으면 더 진한 국물이 됩니다.' },
+  { name: '잡채', icon: '🍝', meal: 'lunch', need: ['당면', '당근', '시금치'], optional: ['소고기', '양파'],
+    steps: ['당면을 30분 불립니다.', '각 재료를 따로 볶아 소금으로 간합니다.', '당면을 간장 2·설탕 1·참기름으로 볶습니다.', '모든 재료를 합쳐 참기름으로 마무리합니다.'],
+    tip: '재료를 따로 볶아야 각각의 맛이 살아납니다.' },
+  { name: '순두부찌개', icon: '🥘', meal: 'lunch', need: ['두부', '달걀'], optional: ['양파', '파', '마늘'],
+    steps: ['냄비에 기름을 두르고 마늘·고춧가루를 볶습니다.', '물 400ml를 붓고 끓입니다.', '순두부를 큰 덩어리로 넣습니다.', '달걀을 넣고 반숙으로 익힙니다.', '새우젓·소금으로 간합니다.'],
+    tip: '달걀은 가장 마지막에 넣어야 예쁜 모양이 유지됩니다.' },
+  { name: '닭가슴살 샐러드', icon: '🥗', meal: 'lunch', need: ['닭가슴살'], optional: ['양상추', '당근', '오이'],
+    steps: ['닭가슴살을 끓는 물에 15분 삶습니다.', '식혀서 결대로 찢어둡니다.', '야채를 먹기 좋게 자릅니다.', '올리브유·레몬즙·소금으로 드레싱을 만듭니다.', '모두 합쳐 버무립니다.'],
+    tip: '닭가슴살을 삶을 때 월계수잎을 넣으면 잡내가 없어집니다.' },
+  { name: '감자탕', icon: '🦴', meal: 'lunch', need: ['돼지고기', '감자'], optional: ['들깨', '파', '마늘'],
+    steps: ['돼지고기를 찬물에 30분 담가 핏물을 빼고 데칩니다.', '냄비에 고기·물·마늘·된장을 넣고 1시간 끓입니다.', '감자를 넣고 20분 더 끓입니다.', '들깨·파를 넣어 마무리합니다.'],
+    tip: '뼈 있는 목뼈를 쓰면 국물이 훨씬 진합니다.' },
+  { name: '두부 김치볶음', icon: '🌶️', meal: 'lunch', need: ['두부', '김치'], optional: ['파'],
+    steps: ['두부를 도톰하게 썰어 기름 두른 팬에 노릇하게 굽습니다.', '김치를 잘게 썰어 함께 볶습니다.', '설탕 0.5·참기름으로 마무리합니다.', '파를 뿌려 완성합니다.'],
+    tip: '두부를 먼저 노릇하게 구워야 뭉개지지 않습니다.' },
+  { name: '소고기 미역국', icon: '🍲', meal: 'lunch', need: ['소고기', '미역'], optional: ['마늘'],
+    steps: ['건미역을 물에 불려 자릅니다.', '냄비에 참기름을 두르고 소고기를 볶습니다.', '미역을 넣고 함께 볶습니다.', '물 700ml·마늘을 넣고 20분 끓입니다.', '국간장으로 간합니다.'],
+    tip: '고기와 미역을 참기름에 충분히 볶는 것이 핵심입니다.' },
+  { name: '콩나물 국밥', icon: '🍚', meal: 'lunch', need: ['콩나물', '쌀'], optional: ['마늘', '파'],
+    steps: ['냄비에 물을 끓이고 콩나물을 넣어 뚜껑 닫고 7분 끓입니다.', '마늘·소금·국간장으로 간합니다.', '그릇에 밥을 담고 국물을 붓습니다.', '파·깨를 뿌려 냅니다.'],
+    tip: '뚜껑을 열지 않고 끓여야 비린 맛이 없습니다.' },
+  { name: '어묵볶음 & 밥', icon: '🍢', meal: 'lunch', need: ['어묵', '양파'], optional: ['파', '마늘'],
+    steps: ['어묵을 먹기 좋게 썰고 끓는 물에 살짝 데칩니다.', '팬에 기름을 두르고 마늘·양파를 볶습니다.', '어묵을 넣고 간장 2·설탕 1·고추장 1로 볶습니다.', '파·깨·참기름으로 마무리합니다.'],
+    tip: '데쳐서 기름기를 빼면 더 깔끔한 맛이 납니다.' },
+  { name: '참치 김치볶음밥', icon: '🍳', meal: 'lunch', need: ['참치', '김치', '쌀'], optional: ['달걀'],
+    steps: ['김치를 잘게 썰어 팬에 볶습니다.', '참치를 기름 빼고 넣어 함께 볶습니다.', '밥을 넣고 볶으며 소금으로 간합니다.', '달걀 프라이를 얹어 완성합니다.'],
+    tip: '참치 기름을 약간 남겨 볶으면 더 고소합니다.' },
+
+  // 저녁
+  { name: '삼겹살 구이', icon: '🥓', meal: 'dinner', need: ['돼지고기'], optional: ['마늘', '상추', '파'],
+    steps: ['삼겹살을 먹기 좋은 크기로 자릅니다.', '달군 팬(또는 그릴)에 기름 없이 굽습니다.', '마늘을 함께 구워 곁들입니다.', '상추에 싸서 쌈장과 함께 먹습니다.'],
+    tip: '센불에서 굽되 자주 뒤집지 않아야 바삭한 껍질이 생깁니다.' },
+  { name: '된장 삼겹살', icon: '🍖', meal: 'dinner', need: ['돼지고기', '된장'], optional: ['마늘', '파'],
+    steps: ['삼겹살에 된장·마늘·청주로 밑간해 30분 재웁니다.', '팬을 센불로 달구고 삼겹살을 굽습니다.', '파를 곁들여 냅니다.'],
+    tip: '된장이 타기 쉬우니 중불에서 천천히 굽는 것이 좋습니다.' },
+  { name: '닭볶음탕', icon: '🍗', meal: 'dinner', need: ['닭가슴살', '감자'], optional: ['당근', '양파', '마늘'],
+    steps: ['닭을 끓는 물에 3분 데쳐 잡내를 뺍니다.', '고추장 2·간장 2·설탕 1·마늘·생강으로 양념을 만듭니다.', '냄비에 닭·감자·양파·당근을 넣고 양념·물을 붓습니다.', '센불로 끓이다 약불로 30분 조립니다.'],
+    tip: '감자는 마지막 15분에 넣어야 너무 무르지 않습니다.' },
+  { name: '소고기 국밥', icon: '🍚', meal: 'dinner', need: ['소고기', '쌀'], optional: ['파', '마늘'],
+    steps: ['소고기를 찬물에 30분 담가 핏물을 뺍니다.', '냄비에 고기·물·마늘을 넣고 1시간 끓입니다.', '고기를 건져 결대로 찢어둡니다.', '육수에 국간장·소금으로 간하고 밥·고기를 담아 냅니다.'],
+    tip: '육수는 처음에 끓으면 거품을 꼭 걷어내야 맑아집니다.' },
+  { name: '두부 조림', icon: '🧊', meal: 'dinner', need: ['두부', '마늘'], optional: ['파', '고추'],
+    steps: ['두부를 도톰하게 썰어 소금을 뿌려 5분 둡니다.', '키친타월로 물기를 닦고 기름에 노릇하게 굽습니다.', '간장 2·물 3·설탕 1·마늘로 양념장을 만듭니다.', '두부 위에 양념장을 붓고 조립니다.'],
+    tip: '양념이 졸아들 때 파·고추를 넣으면 색감이 좋습니다.' },
+  { name: '버섯 된장국', icon: '🍄', meal: 'dinner', need: ['버섯', '두부'], optional: ['파', '마늘'],
+    steps: ['냄비에 물 500ml를 끓입니다.', '된장 2큰술을 풀고 마늘을 넣습니다.', '버섯·두부를 넣고 5분 끓입니다.', '파를 넣어 마무리합니다.'],
+    tip: '버섯은 종류별로 조합하면 더 풍부한 맛이 납니다.' },
+  { name: '카레라이스', icon: '🍛', meal: 'dinner', need: ['감자', '당근', '쌀'], optional: ['양파', '돼지고기'],
+    steps: ['감자·당근·양파·고기를 깍둑썰기합니다.', '냄비에 기름을 두르고 고기와 채소를 볶습니다.', '물 500ml를 붓고 10분 끓입니다.', '카레 루를 넣고 5분 더 끓여 걸쭉하게 만듭니다.', '밥과 함께 냅니다.'],
+    tip: '카레는 루를 넣은 후 불을 약하게 하고 자주 저어야 눌지 않습니다.' },
+  { name: '잡채밥', icon: '🍝', meal: 'dinner', need: ['당면', '당근'], optional: ['시금치', '소고기', '양파'],
+    steps: ['당면을 끓는 물에 5분 삶아 건집니다.', '소고기에 간장·설탕·마늘로 양념해 볶습니다.', '당근·양파·시금치를 각각 소금에 볶습니다.', '모든 재료를 간장 3·설탕 1·참기름으로 버무립니다.', '밥 위에 얹어 냅니다.'],
+    tip: '당면은 살짝 덜 익혀야 나중에 버무릴 때 딱 맞습니다.' },
+  { name: '시금치 된장국', icon: '🍲', meal: 'dinner', need: ['시금치', '두부'], optional: ['마늘'],
+    steps: ['냄비에 물 500ml를 끓입니다.', '된장 1.5큰술을 풀고 마늘을 넣습니다.', '두부를 깍둑썰기해 넣습니다.', '시금치를 넣고 1분만 더 끓입니다.'],
+    tip: '시금치는 오래 끓이면 색이 변하니 마지막에 넣으세요.' },
+  { name: '고구마 닭가슴살 볶음', icon: '🍠', meal: 'dinner', need: ['고구마', '닭가슴살'], optional: ['마늘', '파'],
+    steps: ['고구마를 깍둑썰기해 전자레인지에 3분 익힙니다.', '닭가슴살을 먹기 좋게 자릅니다.', '팬에 기름을 두르고 마늘·닭가슴살을 볶습니다.', '고구마를 넣고 간장 1·설탕 0.5로 조립니다.', '파를 뿌려 완성합니다.'],
+    tip: '고구마를 미리 익혀두면 조리 시간이 크게 줄어듭니다.' },
+  { name: '계란찜', icon: '🥚', meal: 'dinner', need: ['달걀'], optional: ['파', '새우'],
+    steps: ['달걀 3개를 풀고 물 200ml·소금을 넣습니다.', '체에 걸러 매끄럽게 만듭니다.', '냄비에 물을 조금 붓고 달걀 그릇을 올려 중탕합니다.', '뚜껑 닫고 약불에서 10분 익힙니다.', '파를 뿌려 냅니다.'],
+    tip: '물을 많이 넣을수록 부드럽고 수플레 식감이 납니다.' },
+  { name: '부대찌개', icon: '🌭', meal: 'dinner', need: ['김치', '소시지'], optional: ['두부', '양파'],
+    steps: ['냄비에 고추장 1·된장 0.5·다진 마늘로 양념을 만듭니다.', '소시지·김치·두부·양파를 넣습니다.', '물을 자박하게 붓고 끓입니다.', '10분 끓이면 완성입니다.'],
+    tip: '마지막에 치즈 한 장을 올리면 더 진한 맛이 납니다.' },
+  { name: '비빔밥', icon: '🥗', meal: 'dinner', need: ['쌀', '시금치'], optional: ['당근', '달걀', '소고기'],
+    steps: ['각 나물 재료를 데치거나 볶아 간합니다.', '소고기는 양념해 볶아둡니다.', '달걀 프라이를 만듭니다.', '그릇에 밥을 담고 나물·고기·달걀을 얹습니다.', '고추장·참기름을 넣어 비빕니다.'],
+    tip: '밥에 참기름을 먼저 비벼두면 재료가 잘 섞입니다.' },
+  { name: '떡볶이', icon: '🌶️', meal: 'dinner', need: ['떡', '양파'], optional: ['어묵', '파'],
+    steps: ['떡을 물에 30분 불립니다.', '냄비에 물 400ml·고추장 3·설탕 2를 넣고 끓입니다.', '떡·어묵·양파를 넣고 중불에서 졸입니다.', '소스가 걸쭉해지면 파를 뿌려 완성합니다.'],
+    tip: '설탕 대신 물엿을 쓰면 더 윤기 있는 소스가 됩니다.' },
+  { name: '닭가슴살 채소볶음', icon: '🥦', meal: 'dinner', need: ['닭가슴살', '버섯'], optional: ['당근', '양파', '마늘'],
+    steps: ['닭가슴살을 얇게 슬라이스합니다.', '굴소스 2·간장 1·설탕 0.5로 소스를 만듭니다.', '팬에 기름을 두르고 마늘을 볶습니다.', '닭가슴살을 넣어 볶다가 채소를 모두 넣습니다.', '소스를 붓고 센불에서 빠르게 볶습니다.'],
+    tip: '센불에서 재빨리 볶아야 채소의 아삭함이 살아납니다.' },
+  { name: '감자 소고기 볶음', icon: '🥩', meal: 'dinner', need: ['소고기', '감자'], optional: ['당근', '마늘'],
+    steps: ['소고기를 먹기 좋게 썰고 간장·마늘로 밑간합니다.', '감자·당근을 깍둑썰기합니다.', '팬에 소고기를 먼저 볶아 건집니다.', '채소를 볶다가 소고기를 다시 넣습니다.', '간장 1·설탕 0.5로 간합니다.'],
+    tip: '고기를 먼저 볶아두면 채소가 무를 때 고기가 질겨지지 않습니다.' },
+  { name: '두부 스크램블', icon: '🥘', meal: 'dinner', need: ['두부', '달걀'], optional: ['양파', '파'],
+    steps: ['두부를 손으로 으깨고 키친타월로 물기를 닦습니다.', '달걀을 풀어둡니다.', '팬에 기름을 두르고 양파를 볶습니다.', '두부를 넣어 볶다가 달걀을 붓습니다.', '소금·후추로 간하고 파를 올립니다.'],
+    tip: '두부 물기를 잘 빼야 스크램블이 질척해지지 않습니다.' },
+  { name: '된장 버섯 찌개', icon: '🍲', meal: 'dinner', need: ['버섯', '두부'], optional: ['양파', '마늘'],
+    steps: ['냄비에 물 500ml를 끓입니다.', '된장 2큰술·고추장 0.5를 풀고 마늘을 넣습니다.', '버섯·두부·양파를 넣고 10분 끓입니다.'],
+    tip: '표고·느타리·팽이 등 여러 버섯을 섞으면 맛이 풍부합니다.' },
+];
+
+const FALLBACK = {
+  breakfast: { name: '토스트 & 과일', icon: '🍞', need: [], optional: [], steps: ['토스트를 굽고 과일을 곁들입니다.'], tip: '간단하지만 균형 잡힌 아침 식사입니다.' },
+  lunch:     { name: '흰쌀밥 & 반찬', icon: '🍱', need: [], optional: [], steps: ['밥을 짓고 냉장고의 반찬과 함께 냅니다.'], tip: '남은 반찬을 활용해 보세요.' },
+  dinner:    { name: '국 & 밥',       icon: '🍲', need: [], optional: [], steps: ['기본 채소로 국을 끓이고 밥과 함께 냅니다.'], tip: '소금·된장으로 기본 간을 맞추세요.' },
+};
+
+const DAYS = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+const MEALS = ['breakfast', 'lunch', 'dinner'];
+const MEAL_LABEL = { breakfast: '아침', lunch: '점심', dinner: '저녁' };
+
+// ── 태그 입력 (한국어 IME 대응) ──
+let ingredients = [];
+let composing = false;
+
+const input = document.getElementById('ingredient-input');
+
+input.addEventListener('compositionstart', () => { composing = true; });
+input.addEventListener('compositionend',   () => { composing = false; });
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Backspace' && input.value === '' && ingredients.length) {
+    removeIngredient(ingredients[ingredients.length - 1]);
+  }
+});
+
+// keyup으로 엔터 처리 — IME 조합이 완전히 끝난 뒤 발생함
+input.addEventListener('keyup', e => {
+  if (e.key === 'Enter' && !composing) {
+    const val = input.value.trim();
+    if (val) addIngredient(val);
+  }
+});
+
+input.addEventListener('input', () => {
+  if (composing) return;
+  if (input.value.includes(',')) {
+    const parts = input.value.split(',');
+    parts.slice(0, -1).forEach(v => { if (v.trim()) addIngredient(v.trim()); });
+    input.value = parts[parts.length - 1];
+  }
+});
+
+function addIngredient(val) {
+  val = val.trim().replace(/,/g, '');
+  if (!val || ingredients.includes(val)) { input.value = ''; return; }
+  ingredients.push(val);
+  renderTags();
+  input.value = '';
+}
+
+function addPreset(val) { addIngredient(val); }
+
+function removeIngredient(val) {
+  ingredients = ingredients.filter(i => i !== val);
+  renderTags();
+}
+
+function renderTags() {
+  const wrap = document.getElementById('tag-wrap');
+  wrap.querySelectorAll('.tag').forEach(t => t.remove());
+  ingredients.forEach(ing => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    const safe = ing.replace(/'/g, '&#39;');
+    tag.innerHTML = `${ing}<button onclick="removeIngredient('${safe}')" title="삭제">×</button>`;
+    wrap.insertBefore(tag, input);
+  });
+}
+
+// ── 식단 생성 ──
+let plan = [];
+let activeDay = 0;
+
+function score(recipe, ingrs) {
+  const lc = ingrs.map(i => i.toLowerCase());
+  let s = 0;
+  recipe.need.forEach(n => { if (lc.some(i => i.includes(n) || n.includes(i))) s += 3; });
+  recipe.optional.forEach(n => { if (lc.some(i => i.includes(n) || n.includes(i))) s += 1; });
+  return s;
+}
+
+function pickRecipe(meal, ingrs, usedNames) {
+  const pool = RECIPES.filter(r => r.meal === meal && !usedNames.has(r.name));
+  if (!pool.length) return { ...FALLBACK[meal], matchedIngredients: [] };
+  const scored = pool.map(r => ({ ...r, score: score(r, ingrs) }));
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored[0].score;
+  const topPool = scored.filter(r => r.score >= Math.max(top - 1, 0));
+  const chosen = topPool[Math.floor(Math.random() * topPool.length)];
+  const lc = ingrs.map(i => i.toLowerCase());
+  const matched = [...chosen.need, ...chosen.optional].filter(n =>
+    lc.some(i => i.includes(n) || n.includes(i))
+  );
+  return { ...chosen, matchedIngredients: matched };
+}
+
+function generate() {
+  if (ingredients.length === 0) { alert('재료를 하나 이상 입력해주세요!'); return; }
+  plan = [];
+  const usedNames = { breakfast: new Set(), lunch: new Set(), dinner: new Set() };
+  for (let d = 0; d < 7; d++) {
+    const day = {};
+    MEALS.forEach(m => {
+      const r = pickRecipe(m, ingredients, usedNames[m]);
+      if (usedNames[m].size < RECIPES.filter(x => x.meal === m).length - 1) usedNames[m].add(r.name);
+      day[m] = r;
+    });
+    plan.push(day);
+  }
+  activeDay = 0;
+  renderResult();
+}
+
+function renderResult() {
+  document.getElementById('result').classList.add('visible');
+  renderTabs();
+  renderDayCard(activeDay);
+  renderCoverage();
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTabs() {
+  const wrap = document.getElementById('day-tabs');
+  wrap.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'day-tab' + (i === activeDay ? ' active' : '');
+    btn.textContent = d;
+    btn.onclick = () => { activeDay = i; renderTabs(); renderDayCard(i); };
+    wrap.appendChild(btn);
+  });
+}
+
+function renderDayCard(idx) {
+  const card = document.getElementById('day-card');
+  const dayPlan = plan[idx];
+  card.innerHTML = MEALS.map(m => {
+    const r = dayPlan[m];
+    const allIngr = [...(r.need || []), ...(r.optional || [])];
+    const matched = r.matchedIngredients || [];
+    const ingrHtml = allIngr.length
+      ? allIngr.map(n => {
+          const isMatch = matched.includes(n);
+          return `<span class="ingr-tag${isMatch ? ' match' : ''}">${n}</span>`;
+        }).join('')
+      : '<span class="ingr-tag">기본 재료</span>';
+    const rId = encodeURIComponent(r.name);
+    return `<div class="meal-row" onclick="openRecipe('${rId}','${m}')">
+      <div class="meal-icon">${r.icon}</div>
+      <div class="meal-content">
+        <div style="font-size:0.7rem;color:#aaa;margin-bottom:2px;">${MEAL_LABEL[m]}</div>
+        <div class="meal-name">${r.name} <span class="recipe-hint">레시피 보기</span></div>
+        <div class="meal-ingredients">${ingrHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCoverage() {
+  const bar = document.getElementById('coverage-bar');
+  const allRecipeIngredients = new Set(plan.flatMap(d => MEALS.flatMap(m => d[m].matchedIngredients || [])));
+  const matched = ingredients.filter(ing =>
+    [...allRecipeIngredients].some(r => r.includes(ing) || ing.includes(r))
+  ).length;
+  const pct = ingredients.length ? Math.round(matched / ingredients.length * 100) : 0;
+  bar.innerHTML = `
+    <strong>재료 활용률 ${pct}%</strong> — 입력한 ${ingredients.length}개 재료 중 ${matched}개가 이번 주 식단에 사용돼요
+    <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+  `;
+}
+
+// ── 레시피 모달 ──
+function openRecipe(nameEncoded, meal) {
+  const name = decodeURIComponent(nameEncoded);
+  const recipe = RECIPES.find(r => r.name === name) || FALLBACK[meal];
+  if (!recipe) return;
+
+  document.getElementById('modal-icon').textContent = recipe.icon;
+  document.getElementById('modal-name').textContent = recipe.name;
+
+  const badgeClass = { breakfast: 'badge-breakfast', lunch: 'badge-lunch', dinner: 'badge-dinner' };
+  document.getElementById('modal-badge').innerHTML =
+    `<span class="meal-badge ${badgeClass[meal]}">${MEAL_LABEL[meal]}</span>`;
+
+  const myIngredients = ingredients.map(i => i.toLowerCase());
+  const allIngr = [...(recipe.need || []), ...(recipe.optional || [])];
+  const ingrHtml = allIngr.length ? allIngr.map(n => {
+    const have = myIngredients.some(i => i.includes(n) || n.includes(i));
+    const isOpt = (recipe.optional || []).includes(n);
+    return `<span class="recipe-ingr-chip${have ? ' have' : ''}${isOpt ? ' optional' : ''}">${n}${have ? ' ✓' : ''}${isOpt ? ' (선택)' : ''}</span>`;
+  }).join('') : '<span class="recipe-ingr-chip">기본 재료</span>';
+
+  const stepsHtml = (recipe.steps || []).map((s, i) =>
+    `<li><span class="step-num">${i + 1}</span><span class="step-text">${s}</span></li>`
+  ).join('');
+
+  const tipHtml = recipe.tip
+    ? `<div class="recipe-section"><h4>요리 팁</h4><div class="recipe-tip"><strong>💡 </strong>${recipe.tip}</div></div>`
+    : '';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="recipe-section">
+      <h4>필요 재료</h4>
+      <div class="recipe-ingr-list">${ingrHtml}</div>
+    </div>
+    <div class="recipe-section">
+      <h4>조리 순서</h4>
+      <ol class="steps-list">${stepsHtml}</ol>
+    </div>
+    ${tipHtml}
+  `;
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── 메인 탭 전환 ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.main-tab')[tab === 'planner' ? 0 : 1].classList.add('active');
+  if (tab === 'myrecipes') renderMyRecipes();
+}
+
+// ── 나의 레시피 ──
+const ICONS = ['🍳','🥘','🍲','🥗','🍜','🍚','🍱','🥩','🍗','🥓','🍖','🍛','🍝','🥞','🧀','🥚','🥤','🫙','🍠','🥦','🌶️','🍢','🥔','🍄'];
+let myRecipes = JSON.parse(localStorage.getItem('myRecipes') || '[]');
+let editingId = null;
+
+function saveMyRecipes() {
+  localStorage.setItem('myRecipes', JSON.stringify(myRecipes));
+}
+
+function renderMyRecipes() {
+  const list = document.getElementById('my-recipe-list');
+  if (!myRecipes.length) {
+    list.innerHTML = `<div class="empty-my-recipes">
+      <div class="big">📖</div>
+      <p>아직 저장된 레시피가 없어요.<br>+ 레시피 추가 버튼으로 첫 레시피를 등록해보세요!</p>
+    </div>`;
+    return;
+  }
+  list.innerHTML = myRecipes.map(r => `
+    <div class="my-recipe-card" onclick="openMyRecipe('${r.id}')">
+      <div class="my-recipe-card-head">
+        <span class="my-recipe-icon">${r.icon}</span>
+        <div class="my-recipe-info">
+          <div class="my-recipe-name">${r.name}</div>
+          <div class="my-recipe-meta">${r.ingredients ? r.ingredients.split('\n').filter(Boolean).length + '가지 재료' : ''} · ${r.steps ? r.steps.split('\n').filter(Boolean).length + '단계' : ''}</div>
+        </div>
+        <button class="my-recipe-del" onclick="event.stopPropagation(); deleteMyRecipe('${r.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openAddRecipe() {
+  editingId = null;
+  document.getElementById('my-modal-title').textContent = '레시피 추가';
+  document.getElementById('my-modal-icon').textContent = '🍽️';
+  renderRecipeForm(null);
+  document.getElementById('my-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function openMyRecipe(id) {
+  const r = myRecipes.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('my-modal-icon').textContent = r.icon;
+  document.getElementById('my-modal-title').textContent = r.name;
+
+  const ingrLines = (r.ingredients || '').split('\n').filter(Boolean);
+  const stepLines = (r.steps || '').split('\n').filter(Boolean);
+  const ingrHtml = ingrLines.length
+    ? ingrLines.map(i => `<span class="recipe-ingr-chip">${i}</span>`).join('')
+    : '<span class="recipe-ingr-chip">재료 없음</span>';
+  const stepsHtml = stepLines.map((s, i) =>
+    `<li><span class="step-num">${i + 1}</span><span class="step-text">${s}</span></li>`
+  ).join('');
+  const tipHtml = r.tip
+    ? `<div class="recipe-section"><h4>메모 / 팁</h4><div class="recipe-tip"><strong>💡 </strong>${r.tip}</div></div>`
+    : '';
+
+  document.getElementById('my-modal-body').innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn-cancel" style="flex:1" onclick="editMyRecipe('${r.id}')">✏️ 수정</button>
+    </div>
+    <div class="recipe-section">
+      <h4>재료</h4>
+      <div class="recipe-ingr-list">${ingrHtml}</div>
+    </div>
+    <div class="recipe-section">
+      <h4>조리 순서</h4>
+      <ol class="steps-list">${stepsHtml}</ol>
+    </div>
+    ${tipHtml}
+  `;
+
+  document.getElementById('my-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function editMyRecipe(id) {
+  const r = myRecipes.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  document.getElementById('my-modal-title').textContent = '레시피 수정';
+  renderRecipeForm(r);
+}
+
+function renderRecipeForm(r) {
+  const selectedIcon = r ? r.icon : '🍳';
+  const iconsHtml = ICONS.map(ic =>
+    `<span class="icon-opt${ic === selectedIcon ? ' selected' : ''}" onclick="selectIcon(this,'${ic}')">${ic}</span>`
+  ).join('');
+
+  document.getElementById('my-modal-body').innerHTML = `
+    <div class="form-group">
+      <label>아이콘</label>
+      <div class="icon-picker">${iconsHtml}</div>
+    </div>
+    <div class="form-group">
+      <label>요리 이름</label>
+      <input class="form-input" id="form-name" placeholder="예: 된장찌개" value="${r ? r.name : ''}">
+    </div>
+    <div class="form-group">
+      <label>재료</label>
+      <textarea class="form-textarea" id="form-ingredients" placeholder="한 줄에 재료 하나씩 입력&#10;예: 두부 1/2모&#10;양파 1/2개">${r ? r.ingredients : ''}</textarea>
+    </div>
+    <div class="form-group">
+      <label>조리 순서</label>
+      <textarea class="form-textarea" id="form-steps" placeholder="한 줄에 단계 하나씩 입력&#10;예: 두부를 깍둑썰기합니다.&#10;팬에 기름을 두릅니다.">${r ? r.steps : ''}</textarea>
+    </div>
+    <div class="form-group">
+      <label>메모 / 팁 (선택)</label>
+      <input class="form-input" id="form-tip" placeholder="예: 묵은 김치를 쓰면 더 맛있어요" value="${r ? (r.tip || '') : ''}">
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeMyModalDirect()">취소</button>
+      <button class="btn-save" onclick="saveRecipeForm()">저장하기</button>
+    </div>
+  `;
+}
+
+let selectedIconValue = '🍳';
+function selectIcon(el, icon) {
+  document.querySelectorAll('#my-modal-body .icon-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedIconValue = icon;
+  document.getElementById('my-modal-icon').textContent = icon;
+}
+
+function saveRecipeForm() {
+  const name = document.getElementById('form-name').value.trim();
+  if (!name) { alert('요리 이름을 입력해주세요.'); return; }
+  const icon = selectedIconValue || '🍳';
+  const ingredients = document.getElementById('form-ingredients').value.trim();
+  const steps = document.getElementById('form-steps').value.trim();
+  const tip = document.getElementById('form-tip').value.trim();
+
+  if (editingId) {
+    const idx = myRecipes.findIndex(r => r.id === editingId);
+    if (idx !== -1) myRecipes[idx] = { ...myRecipes[idx], name, icon, ingredients, steps, tip };
+  } else {
+    myRecipes.unshift({ id: Date.now().toString(), name, icon, ingredients, steps, tip });
+  }
+  saveMyRecipes();
+  closeMyModalDirect();
+  renderMyRecipes();
+}
+
+function deleteMyRecipe(id) {
+  if (!confirm('이 레시피를 삭제할까요?')) return;
+  myRecipes = myRecipes.filter(r => r.id !== id);
+  saveMyRecipes();
+  renderMyRecipes();
+}
+
+function closeMyModal(e) {
+  if (e.target === document.getElementById('my-modal-overlay')) closeMyModalDirect();
+}
+function closeMyModalDirect() {
+  document.getElementById('my-modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── 서비스워커 등록 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js');
+  });
+}
+</script>
+</body>
+</html>
