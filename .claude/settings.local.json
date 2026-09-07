@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(qlmanage -t -s 512 -o . icon.svg)",
+      "Bash(sips -z 192 192 icon.svg.png --out icon-192.png)"
+    ]
+  }
+}
