@@ -1,4 +1,4 @@
-const CACHE = 'meal-planner-v1';
+const CACHE = 'meal-planner-v2';
 const FILES = [
   './meal-planner.html',
   './manifest.json',
@@ -20,8 +20,15 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// 네트워크 우선 — 오프라인일 때만 캐시 사용
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
