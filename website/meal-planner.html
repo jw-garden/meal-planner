@@ -269,7 +269,21 @@
     font-weight: 600; cursor: pointer;
   }
   .paste-recipe-btn:hover { background: #f0f7f4; }
-  .header-btns { display: flex; gap: 8px; }
+  .header-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .transfer-btns {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .export-btn {
+    flex: 1; background: #f0f7f4; color: #2d6a4f;
+    border: 1.5px solid #b7e4c7; border-radius: 8px;
+    padding: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  }
+  .import-btn {
+    flex: 1; background: #f0f7f4; color: #2d6a4f;
+    border: 1.5px solid #b7e4c7; border-radius: 8px;
+    padding: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  }
+  .export-btn:hover, .import-btn:hover { background: #d8f3dc; }
 
   .parse-result {
     background: #f0f7f4; border: 1.5px solid #b7e4c7;
@@ -434,6 +448,10 @@
       <button class="paste-recipe-btn" onclick="openPasteRecipe()">📋 텍스트로 추가</button>
       <button class="add-recipe-btn" onclick="openAddRecipe()">+ 직접 입력</button>
     </div>
+  </div>
+  <div class="transfer-btns">
+    <button class="export-btn" onclick="exportRecipes()">📤 내보내기 (복사)</button>
+    <button class="import-btn" onclick="openImport()">📥 가져오기 (붙여넣기)</button>
   </div>
   <div id="my-recipe-list"></div>
 </div>
@@ -1029,6 +1047,82 @@ function closeMyModal(e) {
 function closeMyModalDirect() {
   document.getElementById('my-modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// ── 내보내기 / 가져오기 ──
+function exportRecipes() {
+  if (!myRecipes.length) {
+    alert('저장된 레시피가 없어요.');
+    return;
+  }
+  const code = btoa(encodeURIComponent(JSON.stringify(myRecipes)));
+  navigator.clipboard.writeText(code).then(() => {
+    alert(`✅ ${myRecipes.length}개 레시피가 클립보드에 복사됐어요!\n\n홈화면 앱에서 "가져오기"를 눌러 붙여넣으세요.`);
+  }).catch(() => {
+    // 클립보드 자동 복사 실패 시 직접 복사할 수 있게 보여줌
+    document.getElementById('my-modal-title').textContent = '내보내기 코드';
+    document.getElementById('my-modal-icon').textContent = '📤';
+    document.getElementById('my-modal-body').innerHTML = `
+      <p style="font-size:0.85rem;color:#555;margin-bottom:12px;">아래 코드를 전체 선택 후 복사하세요.</p>
+      <textarea class="form-textarea" style="min-height:120px;font-size:0.7rem;word-break:break-all;" readonly onclick="this.select()">${code}</textarea>
+      <div class="form-actions" style="margin-top:12px;">
+        <button class="btn-save" onclick="closeMyModalDirect()">확인</button>
+      </div>
+    `;
+    document.getElementById('my-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  });
+}
+
+function openImport() {
+  document.getElementById('my-modal-title').textContent = '레시피 가져오기';
+  document.getElementById('my-modal-icon').textContent = '📥';
+  document.getElementById('my-modal-body').innerHTML = `
+    <p style="font-size:0.85rem;color:#555;margin-bottom:12px;line-height:1.5;">
+      다른 기기에서 "내보내기"로 복사한 코드를 붙여넣으세요.
+    </p>
+    <div class="form-group">
+      <label>가져오기 코드</label>
+      <textarea class="form-textarea" id="import-code" style="min-height:120px;font-size:0.78rem;"
+        placeholder="여기에 붙여넣기..."></textarea>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.83rem;color:#555;cursor:pointer;">
+        <input type="checkbox" id="import-merge" checked>
+        기존 레시피와 합치기 (체크 해제 시 덮어쓰기)
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeMyModalDirect()">취소</button>
+      <button class="btn-save" onclick="doImport()">가져오기</button>
+    </div>
+  `;
+  document.getElementById('my-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function doImport() {
+  const code = document.getElementById('import-code').value.trim();
+  if (!code) { alert('코드를 붙여넣어 주세요.'); return; }
+  try {
+    const imported = JSON.parse(decodeURIComponent(atob(code)));
+    if (!Array.isArray(imported)) throw new Error();
+    const merge = document.getElementById('import-merge').checked;
+    if (merge) {
+      const existingIds = new Set(myRecipes.map(r => r.id));
+      const newOnes = imported.filter(r => !existingIds.has(r.id));
+      myRecipes = [...myRecipes, ...newOnes];
+      alert(`✅ ${newOnes.length}개 레시피를 추가했어요! (중복 제외)`);
+    } else {
+      myRecipes = imported;
+      alert(`✅ ${myRecipes.length}개 레시피를 불러왔어요!`);
+    }
+    saveMyRecipes();
+    closeMyModalDirect();
+    renderMyRecipes();
+  } catch {
+    alert('올바르지 않은 코드예요. 내보내기 코드를 다시 확인해주세요.');
+  }
 }
 
 // ── 텍스트 붙여넣기로 레시피 추가 ──
